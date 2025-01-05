@@ -17,7 +17,7 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   TextEditingController _messageController = TextEditingController();
   String? _fileName;
-  List<String> _contacts = ["+213674130077"];
+  List<String> _contacts = [];
 
   Future<void> _pickFile() async {
     var result =
@@ -27,26 +27,40 @@ class _HomeState extends State<Home> {
       _fileName = result.files.single.name;
       String filecontent = await file.readAsString();
       setState(() {
-        // _contacts = filecontent.split('\n').map((e) => e.trim()).toList();
-        _contacts = [];
+        _contacts = filecontent.split('\n').map((e) => e.trim()).toList();
       });
     }
   }
 
-  void _sendSms() async {
+  Future<void> _sendSms() async {
     String message = _messageController.text;
-    if (_contacts.isNotEmpty) {
-      String result = await sendSMS(
-        message: message,
-        recipients: _contacts,
-      ).catchError((e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-        print(e.toString());
-        return e.toString();
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+    if (_contacts.isNotEmpty && message.isNotEmpty) {
+      for (String contact in _contacts) {
+        try {
+          String result = await sendSMS(
+            message: message,
+            recipients: [contact],
+          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Sent to $contact: $result')));
+          await Future.delayed(Duration(seconds: 5)); // 5 seconds delay
+        } catch (e) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Error sending to $contact: $e')));
+          print(e.toString());
+        }
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please enter a message and select a contact file.')),
+      );
     }
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
   }
 
   @override
@@ -72,8 +86,16 @@ class _HomeState extends State<Home> {
                 size: 100,
               ),
               SizedBox(height: 20),
-              CustomTextField(
+              TextField(
                 controller: _messageController,
+                decoration: InputDecoration(
+                  labelText: 'Enter your SMS message',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: null,
+                onChanged: (text) {
+                  setState(() {});
+                },
               ),
               SizedBox(height: 120),
               ElevatedButton(
